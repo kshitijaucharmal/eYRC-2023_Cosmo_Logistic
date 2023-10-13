@@ -18,8 +18,8 @@
 *****************************************************************************************
 '''
 
-# Team ID:          [ Team-ID ]
-# Author List:		[ Names of team members worked on this file separated by Comma: Name1, Name2, ... ]
+# Team ID:          [ 1562 ]
+# Author List:		[ Kshitij Aucharmal, Krishnakanta Pattanaik, Kshitij Goswami, Pritam Jatkar ]
 # Filename:		    task1a.py
 # Functions:
 #			        [ Comma separated list of functions in this file ]
@@ -34,6 +34,7 @@
 import rclpy
 import sys
 import cv2
+import cv2.aruco as aruco
 import math
 import tf2_ros
 import numpy as np
@@ -127,15 +128,30 @@ def detect_aruco(image):
 
     #	->  Convert input BGR image to GRAYSCALE for aruco detection
 
-    #   ->  Use these aruco parameters-
-    #       ->  Dictionary: 4x4_50 (4x4 only until 50 aruco IDs)
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    #   ->  Use these aruco parameters- #       ->  Dictionary: 4x4_50 (4x4 only until 50 aruco IDs)
+
+    aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
+    parameters = aruco.DetectorParameters_create()
 
     #   ->  Detect aruco marker in the image and store 'corners' and 'ids'
-    #       ->  HINT: Handle cases for empty markers detection. 
+    # lists of ids and the corners beloning to each id
+    corners, ids, _ = aruco.detectMarkers(gray_image, aruco_dict, parameters=parameters)
 
+    # test
+    center_aruco_list = corners
+
+    #   ->  TODO: Handle cases for empty markers detection.
     #   ->  Draw detected marker on the image frame which will be shown later
 
+    if not np.all(ids is not None):  # If there are markers found by detector
+        print("No Markers")
+
     #   ->  Loop over each marker ID detected in frame and calculate area using function defined above (calculate_rectangle_area(coordinates))
+    for c in corners:
+        area, width = calculate_rectangle_area(corners)
+        print(area, width)
 
     #   ->  Remove tags which are far away from arm's reach positon based on some threshold defined
 
@@ -208,6 +224,9 @@ class aruco_tf(Node):
 
         ############################################
 
+        self.depth_image = self.bridge.imgmsg_to_cv2(data, "")
+        pass
+
 
     def colorimagecb(self, data):
         '''
@@ -232,6 +251,8 @@ class aruco_tf(Node):
 
         ############################################
 
+        self.cv_image = self.bridge.imgmsg_to_cv2(data, "")
+        pass
 
     def process_image(self):
         '''
@@ -253,13 +274,18 @@ class aruco_tf(Node):
         centerCamY = 360
         focalX = 931.1829833984375
         focalY = 931.1829833984375
-            
+
+        center_aruco_list, distance_from_rgb_list, angle_aruco_list, width_aruco_list, ids = detect_aruco(self.cv_image)
+        # value2 = detect_aruco(self.depth_image)
+        
+        print(center_aruco_list)
+        # print(value2)
 
         ############ ADD YOUR CODE HERE ############
 
         # INSTRUCTIONS & HELP : 
 
-        #	->  Get aruco center, distance from rgb, angle, width and ids list from 'detect_aruco_center' defined above
+        #	->  Get aruco center, distance from rgb, angle, width and ids list from 'detect_aruco' defined above
 
         #   ->  Loop over detected box ids received to calculate position and orientation transform to publish TF 
 

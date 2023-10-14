@@ -66,6 +66,8 @@ def calculate_rectangle_area(coordinates):
     area = None
     width = None
 
+    print(coordinates)
+
     ############ ADD YOUR CODE HERE ############
 
     # INSTRUCTIONS & HELP : 
@@ -139,8 +141,8 @@ def detect_aruco(image):
     # lists of ids and the corners beloning to each id
     corners, ids, _ = aruco.detectMarkers(gray_image, aruco_dict, parameters=parameters)
 
-    # test
-    center_aruco_list = corners
+    # Correction Formula
+    # angle_aruco = (0.788*angle_aruco) - ((angle_aruco**2)/3160)
 
     #   ->  TODO: Handle cases for empty markers detection.
     #   ->  Draw detected marker on the image frame which will be shown later
@@ -150,8 +152,7 @@ def detect_aruco(image):
 
     #   ->  Loop over each marker ID detected in frame and calculate area using function defined above (calculate_rectangle_area(coordinates))
     for c in corners:
-        area, width = calculate_rectangle_area(corners)
-        print(area, width)
+        area, width = calculate_rectangle_area(c)
 
     #   ->  Remove tags which are far away from arm's reach positon based on some threshold defined
 
@@ -275,23 +276,20 @@ class aruco_tf(Node):
         focalX = 931.1829833984375
         focalY = 931.1829833984375
 
-        center_aruco_list, distance_from_rgb_list, angle_aruco_list, width_aruco_list, ids = detect_aruco(self.cv_image)
         # value2 = detect_aruco(self.depth_image)
-        
-        print(center_aruco_list)
-        # print(value2)
 
         ############ ADD YOUR CODE HERE ############
 
         # INSTRUCTIONS & HELP : 
 
         #	->  Get aruco center, distance from rgb, angle, width and ids list from 'detect_aruco' defined above
+        center_aruco_list, distance_from_rgb_list, angle_aruco_list, width_aruco_list, ids = detect_aruco(self.cv_image)
 
         #   ->  Loop over detected box ids received to calculate position and orientation transform to publish TF 
 
         #   ->  Use this equation to correct the input aruco angle received from cv2 aruco function 'estimatePoseSingleMarkers' here
         #       It's a correction formula- 
-        #       angle_aruco = (0.788*angle_aruco) - ((angle_aruco**2)/3160)
+            # angle_aruco = (0.788*angle_aruco) - ((angle_aruco**2)/3160)
 
         #   ->  Then calculate quaternions from roll pitch yaw (where, roll and pitch are 0 while yaw is corrected aruco_angle)
 

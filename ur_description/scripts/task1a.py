@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 '''
 *****************************************************************************************
 *
@@ -28,7 +27,6 @@
 #			        Publishing Topics  - [ /tf ]
 #                   Subscribing Topics - [ /camera/aligned_depth_to_color/image_raw, /etc... ]
 
-
 ################### IMPORT MODULES #######################
 
 import rclpy
@@ -45,10 +43,10 @@ from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import CompressedImage, Image
 from pprint import pprint
 
-
 ##################### FUNCTION DEFINITIONS #######################
 
 def calculate_center(coords):
+    coords = coords[0]
     x_coords = [p[0] for p in coords]
     y_coords = [p[1] for p in coords]
     center_x = sum(x_coords) / len(coords)
@@ -96,7 +94,6 @@ def calculate_rectangle_area(coordinates):
     ############################################
 
     return area, width
-
 
 def detect_aruco(image):
     '''
@@ -182,6 +179,11 @@ def detect_aruco(image):
         rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, cam_mat, dist_mat)
 
         rvecs, _ = cv2.Rodrigues(rvecs)
+
+        (rvecs - tvecs).any()  # get rid of that nasty numpy value array error
+        aruco.drawDetectedMarkers(self.cv_image, corners)  # Draw A square around the markers
+        aruco.drawAxis(gray_image, cam_mat, dist_mat, rvecs, tvecs, 0.01)  # Draw Axis
+
         angles = cv2.RQDecomp3x3(rvecs)[0]
 
         angle_aruco = []
@@ -320,6 +322,7 @@ class aruco_tf(Node):
         #	->  Get aruco center, distance from rgb, angle, width and ids list from 'detect_aruco' defined above
         center_aruco_list, distance_from_rgb_list, angle_aruco_list, width_aruco_list, ids = detect_aruco(self.cv_image)
 
+        for i in range(len(ids)):
         #   ->  Loop over detected box ids received to calculate position and orientation transform to publish TF 
 
         #   ->  Use this equation to correct the input aruco angle received from cv2 aruco function 'estimatePoseSingleMarkers' here
@@ -331,30 +334,34 @@ class aruco_tf(Node):
         #   ->  Use center_aruco_list to get realsense depth and log them down. (divide by 1000 to convert mm to m)
 
         #   ->  Use this formula to rectify x, y, z based on focal length, center value and size of image
-        #       x = distance_from_rgb * (sizeCamX - cX - centerCamX) / focalX
-        #       y = distance_from_rgb * (sizeCamY - cY - centerCamY) / focalY
-        #       z = distance_from_rgb
+            cX = center_aruco_list[i][0]
+            cY = center_aruco_list[i][1]
+
+            x = distance_from_rgb * (sizeCamX - cX - centerCamX) / focalX
+            y = distance_from_rgb * (sizeCamY - cY - centerCamY) / focalY
+            z = distance_from_rgb
         #       where, 
         #               cX, and cY from 'center_aruco_list'
         #               distance_from_rgb is depth of object calculated in previous step
         #               sizeCamX, sizeCamY, centerCamX, centerCamY, focalX and focalY are defined above
 
         #   ->  Now, mark the center points on image frame using cX and cY variables with help of 'cv2.cirle' function 
+            cv2.circle(self.cv_image, (int(cX), int(cY)), 5, -1)
 
         #   ->  Here, till now you receive coordinates from camera_link to aruco marker center position. 
         #       So, publish this transform w.r.t. camera_link using Geometry Message - TransformStamped 
         #       so that we will collect it's position w.r.t base_link in next step.
         #       Use the following frame_id-
-        #           frame_id = 'camera_link'
-        #           child_frame_id = 'cam_<marker_id>'          Ex: cam_20, where 20 is aruco marker ID
+            frame_id = 'camera_link'
+            child_frame_id = f'cam_{ids[i]}'          # Ex: cam_20, where 20 is aruco marker ID
 
         #   ->  Then finally lookup transform between base_link and obj frame to publish the TF
         #       You may use 'lookup_transform' function to pose of obj frame w.r.t base_link 
 
         #   ->  And now publish TF between object frame and base_link
         #       Use the following frame_id-
-        #           frame_id = 'base_link'
-        #           child_frame_id = 'obj_<marker_id>'          Ex: obj_20, where 20 is aruco marker ID
+            frame_id = 'base_link'
+            child_frame_id = f'obj_{ids[i]}'          # Ex: obj_20, where 20 is aruco marker ID
 
         #   ->  At last show cv2 image window having detected markers drawn and center points located using 'cv2.imshow' function.
         #       Refer MD book on portal for sample image -> https://portal.e-yantra.org/
@@ -363,6 +370,9 @@ class aruco_tf(Node):
         #               Also, auto eval script will be judging angular difference aswell. So, make sure that Z axis is inside the box (Refer sample images on Portal - MD book)
 
         ############################################
+
+        cv2.imshow("Image", self.cv_image)
+        cv2.waitKey()
 
 
 ##################### FUNCTION DEFINITION #######################

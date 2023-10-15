@@ -43,9 +43,17 @@ from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import TransformStamped
 from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import CompressedImage, Image
+from pprint import pprint
 
 
 ##################### FUNCTION DEFINITIONS #######################
+
+def calculate_center(coords):
+    x_coords = [p[0] for p in coords]
+    y_coords = [p[1] for p in coords]
+    center_x = sum(x_coords) / len(coords)
+    center_y = sum(y_coords) / len(coords)
+    return [center_x, center_y]
 
 def calculate_rectangle_area(coordinates):
     '''
@@ -66,7 +74,16 @@ def calculate_rectangle_area(coordinates):
     area = None
     width = None
 
-    print(coordinates)
+    (topLeft, topRight, bottomRight, bottomLeft) = coordinates.reshape((4, 2))
+    x1, y1 = topLeft
+    x2, y2 = topRight
+    x3, y3 = bottomRight
+    x4, y4 = bottomLeft
+
+    side_length = math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+    area = 0.5 * ((x1*y2 + x2*y3 + x3*y4 + x4*y1) - (x2*y1 + x3*y2 + x4*y3 + x1*y4))
+
+    width = area / side_length
 
     ############ ADD YOUR CODE HERE ############
 
@@ -151,18 +168,36 @@ def detect_aruco(image):
         print("No Markers")
 
     #   ->  Loop over each marker ID detected in frame and calculate area using function defined above (calculate_rectangle_area(coordinates))
-    for c in corners:
-        area, width = calculate_rectangle_area(c)
+    far_away = []
+    for i in range(len(ids)):
+        area, width = calculate_rectangle_area(corners[i])
+        # Detect which are too far away
+        if area < aruco_area_threshold:
+            # print(f"{ids[i]} removed because too far away {corners[i]}")
+            continue
+        # Calculate center points aruco list using math and distance from RGB camera using pose estimation of aruco marker
+        center_aruco_list.append(calculate_center(corners[i]))
+        # HINT: You may use numpy for center points and 'estimatePoseSingleMarkers' from cv2 aruco library for pose estimation
 
-    #   ->  Remove tags which are far away from arm's reach positon based on some threshold defined
+        rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners[i], 0.02, cam_mat, dist_mat)
 
-    #   ->  Calculate center points aruco list using math and distance from RGB camera using pose estimation of aruco marker
-    #       ->  HINT: You may use numpy for center points and 'estimatePoseSingleMarkers' from cv2 aruco library for pose estimation
+        rvecs, _ = cv2.Rodrigues(rvecs)
+        angles = cv2.RQDecomp3x3(rvecs)[0]
+
+        angle_aruco = []
+        for angle in angles:
+            angle_aruco.append((0.788*angle) - ((angle**2)/3160))
+        angle_aruco = tuple(angle_aruco)
+
+        angle_aruco_list.append(angle_aruco)
+        width_aruco_list.append(width)
 
     #   ->  Draw frame axes from coordinates received using pose estimation
     #       ->  HINT: You may use 'cv2.drawFrameAxes'
 
     ############################################
+    # TODO:
+    # - distance_from_rgb_list
 
     return center_aruco_list, distance_from_rgb_list, angle_aruco_list, width_aruco_list, ids
 

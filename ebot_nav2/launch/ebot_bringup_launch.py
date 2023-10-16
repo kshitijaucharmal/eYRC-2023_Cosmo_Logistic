@@ -84,7 +84,7 @@ def generate_launch_description():
 
     declare_map_yaml_cmd = DeclareLaunchArgument(
         'map',
-        default_value=os.path.join(ebot_nav2_dir, 'maps', 'map_name.yaml'),
+        default_value=os.path.join(ebot_nav2_dir, 'maps', 'map.yaml'),  ## Update the map config here
         description='Full path to map yaml file to load')
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
@@ -152,14 +152,14 @@ def generate_launch_description():
         name='rviz2',
         arguments=['-d', rviz_config_file],
         output='screen')
-    
+
     robot_localization_node = Node(
        package='robot_localization',
        executable='ekf_node',
        name='ekf_filter_node',
        output='screen',
-       parameters=[os.path.join(ebot_nav2_dir, 'config/ekf.yaml'), {'use_sim_time': use_sim_time}]
-)
+       parameters=[os.path.join(ebot_nav2_dir, 'config/ekf.yaml'), {'use_sim_time': use_sim_time}] ##Loads the ekf.yaml file
+        )
 
     bringup_cmd_group = GroupAction([
         PushRosNamespace(
@@ -223,7 +223,7 @@ def generate_launch_description():
     ld.add_action(declare_log_level_cmd)
     ld.add_action(declare_rviz_config_file_cmd)
     ld.add_action(start_rviz_cmd)
-    ld.add_action(declare_mapper_online_async_param_cmd)
-    ld.add_action(mapper_online_async_param_launch)
+    ld.add_action(robot_localization_node)
+    ld.add_action(bringup_cmd_group)
 
     return ld
